@@ -19,12 +19,12 @@ class Cow:
 
     def moo(self):
         def _moo_rare():
-	        rare_char = random.choice([x for x in cowsay.char_names if x not in ['cow', 'beavis', 'ghostbusters', 'miki', 'stimpy']])
-	        char_speak = getattr(cowsay, rare_char)
-	        char_speak(f"Moo?\n-{self.name} the {rare_char}?")
+            rare_char = random.choice([x for x in cowsay.char_names if x not in ['cow', 'beavis', 'ghostbusters', 'miki', 'stimpy']])
+            char_speak = getattr(cowsay, rare_char)
+            char_speak(f"Moo?\n-{self.name} the {rare_char}?")
 	    
         if not self.is_normal_cow:
-        	_moo_rare() # Nothing to see here
+            _moo_rare() # Nothing to see here
         else:
         	cowsay.cow(f"Moo!\n-{self.name}, age {self.age}")
 
