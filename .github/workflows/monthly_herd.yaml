@@ -2,7 +2,7 @@ name: Monthly Herd # Writes silly_cow_test.sh result stats monthly
 
 on:
   schedule:
-    - cron: '0 9 1 * *'
+    - cron: '0 8 1 * *'
   workflow_dispatch: 
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
 
       - name: Run script and append output # Takes from current month/year for number of cows (max: 2000)
         run: |
-          curr_interval=$(date +%m-%Y)
+          curr_interval=$(date +%B-%Y)
           curr_year=$(date +%Y)
           curr_month=$(date +%m | sed 's/^0*//')
           curr_query=$(( curr_year / curr_month ))
@@ -37,7 +37,7 @@ jobs:
             curr_query=2000
           fi
           
-          curr_results=$(python silly_cow_test.py -a "$curr_query" | tail -n 2)
+          curr_results=$(python silly_cow_test.py -a "$curr_query" | tail -n 3)
           curr_results=${curr_results/FINAL/$curr_interval}
           echo "$curr_results" >> monthly_herd_stats.log
 
@@ -46,5 +46,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add monthly_herd_stats.log
-          git diff --quiet && git diff --staged --quiet || git commit -m "chore: append monthly script output"
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: append monthly script output for $(date +%B-%Y)"
           git push
