@@ -37,7 +37,7 @@ jobs:
             curr_query=2000
           fi
           
-          curr_results=$(python silly_cow_test.py -a "$curr_query" | tail -n 3)
+          curr_results=$(python silly_cow_test.py -a "$curr_query" | tail -n 3 | sed -e '/^[[:space:]]*$/d')
           curr_results=${curr_results/FINAL/$curr_interval}
           echo "$curr_results" >> monthly_herd_stats.log
 

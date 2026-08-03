@@ -14,19 +14,33 @@ class Cow:
         normal_chance = 0.70 if self.age <= 2 else 0.99
         if random.random() >= normal_chance:
             self.is_normal_cow = False
+            self._rare_char = random.choice([x for x in cowsay.char_names if x not in ['cow', 'beavis', 'ghostbusters', 'miki', 'stimpy']])
         else:
             self.is_normal_cow = True
+            self._rare_char = None
 
     def moo(self):
         def _moo_rare():
-            rare_char = random.choice([x for x in cowsay.char_names if x not in ['cow', 'beavis', 'ghostbusters', 'miki', 'stimpy']])
-            char_speak = getattr(cowsay, rare_char)
-            char_speak(f"Moo?\n-{self.name} the {rare_char}?")
+            char_moo = getattr(cowsay, self._rare_char)
+            char_moo(f"Moo?\n-{self.name} the {self._rare_char}?")
 	    
         if not self.is_normal_cow:
             _moo_rare() # Nothing to see here
         else:
         	cowsay.cow(f"Moo!\n-{self.name}, age {self.age}")
+
+    def speak(self, message):
+        if not self.is_normal_cow:
+            char_speak = getattr(cowsay, self._rare_char)
+            char_speak(f"{message}\n-{self.name} the {self._rare_char}?")
+        else:
+            cowsay.cow(f"{message}\n-{self.name} the Cow")
+
+    def __str__(self):
+        if not self.is_normal_cow:
+            return f"{self.name} the {self._rare_char}?, age {self.age}"
+        else:
+            return f"{self.name} the Cow, age {self.age}"
 
 def main():
     parser = argparse.ArgumentParser(
@@ -65,6 +79,7 @@ def main():
     for item, count in c_counter.most_common():
         percent = (count / args.loops) * 100
         print(f"{item}: {count} ({percent:.2f}%)")
-		
+
 if __name__ == "__main__":
-	main()
+    main()
+
