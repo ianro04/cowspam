@@ -74,8 +74,6 @@ def main():
         c_counter.update(["Anomalous Cows" if not(c.is_normal_cow) else "Normal Cows"])
 
     print("\n ☆ FINAL TALLY ☆ ")
-    if c_counter["Anomalous Cows"] == 0:
-        c_counter["Cows"] = c_counter.pop("Normal Cows")
     for item, count in c_counter.most_common():
         percent = (count / args.loops) * 100
         print(f"{item}: {count} ({percent:.2f}%)")
