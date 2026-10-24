@@ -3,6 +3,7 @@
 import argparse
 import os
 import random
+import sys
 import time
 from collections import Counter
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ import cowsay
 from faker import Faker
 
 FLASH_ON = False
+PIPED = False
 
 @dataclass
 class Cow:
@@ -60,6 +62,8 @@ def clear_screen():
     srun(command, shell=True)
 
 def main():
+    global FLASH_ON, PIPED
+    sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(
         description="Flood your terminal/output with random cows that moo (most of the time)."
     )
@@ -80,15 +84,29 @@ def main():
         default=100,
         help="Number of cows to generate (default: 100)"
     )
+    parser.add_argument(
+        "-k", "-kb", "--kilobytes",
+        nargs="?",
+        type=int,
+        help="Number of kilobytes of cows to generate (overrides loops)"
+    )
     args = parser.parse_args()
+    PIPED = not sys.stdin.isatty() or not sys.stdout.isatty()
 
     if args.loops < 1:
         parser.error("Loops must be a positive integer.")
-    if args.flash:
-        global FLASH_ON
+    if args.flash and sys.stdin.isatty():
         FLASH_ON = True
+    if not args.auto and PIPED:
+        args.auto = True
 
     c_counter = Counter()
+
+    if args.kilobytes:
+        # If PIPED, generate a file until you reach the desired size
+        # If not PIPED, print to devnull
+        print("Not implemented yet. Please use the loops argument instead.")
+        return 1
 
     fake = Faker()
     for _ in range(args.loops):
