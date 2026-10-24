@@ -1,15 +1,24 @@
 import argparse
-import cowsay
 import random
 import time
 from collections import Counter
+from dataclasses import dataclass
+
+import cowsay
 from faker import Faker
 
 # Purpose: Bovine terminal spam
 
+@dataclass
 class Cow:
-    def __init__(self, name=""):
-        self.name = name or "Unnamed Cow"
+    name: str = ""
+    age: int = 0
+    is_normal_cow: bool = True
+    _rare_char: str = None
+
+    def __post_init__(self):
+        if not self.name:
+            self.name = "Unnamed Cow"
         self.age = round(random.triangular(0, 20, 4))
         normal_chance = 0.70 if self.age <= 2 else 0.99
         if random.random() >= normal_chance:
@@ -23,11 +32,11 @@ class Cow:
         def _moo_rare():
             char_moo = getattr(cowsay, self._rare_char)
             char_moo(f"Moo?\n-{self.name} the {self._rare_char}?")
-	    
+
         if not self.is_normal_cow:
             _moo_rare() # Nothing to see here
         else:
-        	cowsay.cow(f"Moo!\n-{self.name}, age {self.age}")
+            cowsay.cow(f"Moo!\n-{self.name}, age {self.age}")
 
     def speak(self, message):
         if not self.is_normal_cow:
