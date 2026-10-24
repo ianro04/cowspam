@@ -1,13 +1,17 @@
+# Purpose: Bovine terminal spam
+
 import argparse
+import os
 import random
 import time
 from collections import Counter
 from dataclasses import dataclass
+from subprocess import run as srun
 
 import cowsay
 from faker import Faker
 
-# Purpose: Bovine terminal spam
+FLASH_ON = False
 
 @dataclass
 class Cow:
@@ -51,6 +55,10 @@ class Cow:
         else:
             return f"{self.name} the Cow, age {self.age}"
 
+def clear_screen():
+    command = ('cls' if os.name == 'nt' else 'clear')
+    srun(command, shell=True)
+
 def main():
     parser = argparse.ArgumentParser(
         description="Flood your terminal/output with random cows that moo (most of the time)."
@@ -59,6 +67,11 @@ def main():
         "-a", "--auto",
         action="store_true",
         help="Run without the 1-second delay between cows"
+    )
+    parser.add_argument(
+        "-f", "--flash",
+        action="store_true",
+        help="Clear the screen for each cow, creating a flashing effect"
     )
     parser.add_argument(
         "loops",
@@ -71,6 +84,9 @@ def main():
 
     if args.loops < 1:
         parser.error("Loops must be a positive integer.")
+    if args.flash:
+        global FLASH_ON
+        FLASH_ON = True
 
     c_counter = Counter()
 
@@ -79,6 +95,8 @@ def main():
         if not args.auto:
             time.sleep(1)
         c = Cow(fake.first_name_female())
+        if args.flash:
+            clear_screen()
         c.moo()
         c_counter.update(["Anomalous Cows" if not(c.is_normal_cow) else "Normal Cows"])
 
