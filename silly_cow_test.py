@@ -1,31 +1,31 @@
 # Purpose: Bovine terminal spam
+from __future__ import annotations
 
 import argparse
 import os
 import random
 import sys
+import threading
 import time
 from collections import Counter
-from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from subprocess import run as srun
 
 import cowsay
 from faker import Faker
 
-FLASH_ON = False
-PIPED = False
+KB_BATCH_SIZE = 64
 
 @dataclass
 class Cow:
-    name: str = ""
-    age: int = 0
-    is_normal_cow: bool = True
-    _rare_char: str = None
+    name: str = "Unnamed Cow"
+    age: int = None
+    is_normal_cow: bool = field(init=False)
+    _rare_char: str | None = field(init=False, default=None)
 
     def __post_init__(self):
-        if not self.name:
-            self.name = "Unnamed Cow"
-        self.age = round(random.triangular(0, 20, 4))
+        self.age = self.age if self.age is not None else round(random.triangular(0, 20, 4))
         normal_chance = 0.70 if self.age <= 2 else 0.99
         if random.random() >= normal_chance:
             self.is_normal_cow = False
@@ -34,36 +34,79 @@ class Cow:
             self.is_normal_cow = True
             self._rare_char = None
 
-    def moo(self):
-        def _moo_rare():
-            char_moo = getattr(cowsay, self._rare_char)
-            char_moo(f"Moo?\n-{self.name} the {self._rare_char}?")
+    @property
+    def _char(self):
+        return "cow" if self.is_normal_cow else self._rare_char
 
-        if not self.is_normal_cow:
-            _moo_rare() # Nothing to see here
-        else:
-            cowsay.cow(f"Moo!\n-{self.name}, age {self.age}")
+    @property
+    def _title(self):
+        return f"{self.name} the Cow" if self.is_normal_cow else f"{self.name} the {self._rare_char}?"
+
+    def _render(self, message, signature):
+        return cowsay.get_output_string(self._char, f"{message}\n-{signature}")
+
+    def moo_text(self):
+        if self.is_normal_cow:
+            return self._render("Moo!", f"{self.name}, age {self.age}")
+        return self._render("Moo?", self._title)  # Nothing to see here
+
+    def speak_text(self, message):
+        return self._render(message, self._title)
+
+    def moo(self):
+        print(self.moo_text())
 
     def speak(self, message):
-        if not self.is_normal_cow:
-            char_speak = getattr(cowsay, self._rare_char)
-            char_speak(f"{message}\n-{self.name} the {self._rare_char}?")
-        else:
-            cowsay.cow(f"{message}\n-{self.name} the Cow")
+        print(self.speak_text(message))
 
     def __str__(self):
-        if not self.is_normal_cow:
-            return f"{self.name} the {self._rare_char}?, age {self.age}"
-        else:
-            return f"{self.name} the Cow, age {self.age}"
+        return f"{self._title}, age {self.age}"
+
+_thread_local = threading.local()
+
+def _get_faker():
+    if not hasattr(_thread_local, "fake"):
+        _thread_local.fake = Faker()
+    return _thread_local.fake
+
+def make_cow_text():
+    """Build one random cow. Returns (rendered_text, is_normal_cow)."""
+    cow = Cow(_get_faker().first_name_female())
+    return cow.moo_text(), cow.is_normal_cow
 
 def clear_screen():
     command = ('cls' if os.name == 'nt' else 'clear')
     srun(command, shell=True)
 
+def print_tally(counter, file=None):
+    total = sum(counter.values())
+    print("\n ☆ FINAL TALLY ☆ ", file=file)
+    for item, count in counter.most_common():
+        percent = (count / total) * 100 if total else 0
+        print(f"{item}: {count} ({percent:.2f}%)", file=file)
+
+def run_kilobytes(kilobytes, write_output):
+    """Generate cows in a thread pool until at least `kilobytes` KB have been produced."""
+    target = kilobytes * 1024
+    produced = 0
+    counter = Counter()
+
+    with ThreadPoolExecutor() as pool:
+        while produced < target:
+            for text, is_normal in pool.map(lambda _: make_cow_text(), range(KB_BATCH_SIZE)):
+                if write_output:
+                    sys.stdout.write(text + "\n")
+                produced += len(text.encode("utf-8")) + 1
+                counter.update(["Normal Cows" if is_normal else "Anomalous Cows"])
+                if produced >= target:
+                    break
+
+    return counter, produced
+
 def main():
-    global FLASH_ON, PIPED
-    sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     parser = argparse.ArgumentParser(
         description="Flood your terminal/output with random cows that moo (most of the time)."
     )
@@ -85,44 +128,47 @@ def main():
         help="Number of cows to generate (default: 100)"
     )
     parser.add_argument(
-        "-k", "-kb", "--kilobytes",
-        nargs="?",
+        "-k", "--kb", "--kilobytes",
+        dest="kilobytes",
+        metavar="KB",
         type=int,
-        help="Number of kilobytes of cows to generate (overrides loops)"
+        help="Kilobytes of cows to generate (overrides loops). "
+             "Output is written if stdout is piped/redirected, otherwise discarded."
     )
     args = parser.parse_args()
-    PIPED = not sys.stdin.isatty() or not sys.stdout.isatty()
+
+    stdout_is_tty = sys.stdout.isatty()
+    piped = not sys.stdin.isatty() or not stdout_is_tty
 
     if args.loops < 1:
         parser.error("Loops must be a positive integer.")
-    if args.flash and sys.stdin.isatty():
-        FLASH_ON = True
-    if not args.auto and PIPED:
-        args.auto = True
+    if args.kilobytes is not None and args.kilobytes < 1:
+        parser.error("Kilobytes must be a positive integer.")
+
+    flash = args.flash and stdout_is_tty
+    auto = args.auto or piped
+
+    if args.kilobytes is not None:
+        counter, produced = run_kilobytes(args.kilobytes, write_output=not stdout_is_tty)
+        print_tally(counter, file=sys.stderr)
+        print(f"Generated ~{produced / 1024:.2f} KB of cows"
+              f"{' (discarded; redirect stdout to keep them)' if stdout_is_tty else ''}",
+              file=sys.stderr)
+        return 0
 
     c_counter = Counter()
-
-    if args.kilobytes:
-        # If PIPED, generate a file until you reach the desired size
-        # If not PIPED, print to devnull
-        print("Not implemented yet. Please use the loops argument instead.")
-        return 1
-
     fake = Faker()
     for _ in range(args.loops):
-        if not args.auto:
+        if not auto:
             time.sleep(1)
         c = Cow(fake.first_name_female())
-        if args.flash:
+        if flash:
             clear_screen()
         c.moo()
-        c_counter.update(["Anomalous Cows" if not(c.is_normal_cow) else "Normal Cows"])
+        c_counter.update(["Anomalous Cows" if not c.is_normal_cow else "Normal Cows"])
 
-    print("\n ☆ FINAL TALLY ☆ ")
-    for item, count in c_counter.most_common():
-        percent = (count / args.loops) * 100
-        print(f"{item}: {count} ({percent:.2f}%)")
+    print_tally(c_counter)
+    return 0
 
 if __name__ == "__main__":
-    main()
-
+    sys.exit(main())
