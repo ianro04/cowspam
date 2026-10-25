@@ -15,6 +15,7 @@ from subprocess import run as srun
 import cowsay
 from faker import Faker
 
+COWSAY_CHARS = [x for x in cowsay.char_names if x not in ['cow', 'beavis', 'ghostbusters', 'miki', 'stimpy']]
 KB_BATCH_SIZE = 64
 
 @dataclass
@@ -29,7 +30,7 @@ class Cow:
         normal_chance = 0.70 if self.age <= 2 else 0.99
         if random.random() >= normal_chance:
             self.is_normal_cow = False
-            self._rare_char = random.choice([x for x in cowsay.char_names if x not in ['cow', 'beavis', 'ghostbusters', 'miki', 'stimpy']])
+            self._rare_char = random.choice(COWSAY_CHARS)
         else:
             self.is_normal_cow = True
             self._rare_char = None
