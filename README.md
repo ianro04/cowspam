@@ -5,4 +5,4 @@ Requires Python 3 and pip. From the project directory, install the listed depend
 
     python -m pip install -r requirements.txt
 
-Use -h or --help flags for commands (ex: *python silly_cow_test.py --help*).
+Use -h or --help flags for commands (ex: *python3 cowspam.py --help*).

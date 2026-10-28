@@ -22,18 +22,15 @@ KB_BATCH_SIZE = 64
 class Cow:
     name: str = "Unnamed Cow"
     age: int = None
-    is_normal_cow: bool = field(init=False)
+    is_normal_cow: bool = field(default=None)
     _rare_char: str | None = field(init=False, default=None)
 
     def __post_init__(self):
         self.age = self.age if self.age is not None else round(random.triangular(0, 20, 4))
-        normal_chance = 0.70 if self.age <= 2 else 0.99
-        if random.random() >= normal_chance:
-            self.is_normal_cow = False
-            self._rare_char = random.choice(COWSAY_CHARS)
-        else:
-            self.is_normal_cow = True
-            self._rare_char = None
+        if self.is_normal_cow is None:
+            normal_chance = 0.70 if self.age <= 2 else 0.99
+            self.is_normal_cow = random.random() < normal_chance
+        self._rare_char = None if self.is_normal_cow else random.choice(COWSAY_CHARS)
 
     @property
     def _char(self):
@@ -70,9 +67,9 @@ def _get_faker():
         _thread_local.fake = Faker()
     return _thread_local.fake
 
-def make_cow_text():
+def make_cow_text(normal_only=False):
     """Build one random cow. Returns (rendered_text, is_normal_cow)."""
-    cow = Cow(_get_faker().first_name_female())
+    cow = Cow(_get_faker().first_name_female(), is_normal_cow=True if normal_only else None)
     return cow.moo_text(), cow.is_normal_cow
 
 def clear_screen():
@@ -86,7 +83,7 @@ def print_tally(counter, file=None):
         percent = (count / total) * 100 if total else 0
         print(f"{item}: {count} ({percent:.2f}%)", file=file)
 
-def run_kilobytes(kilobytes, write_output):
+def run_kilobytes(kilobytes, write_output, normal_only=False):
     """Generate cows in a thread pool until at least `kilobytes` KB have been produced."""
     target = kilobytes * 1024
     produced = 0
@@ -94,7 +91,7 @@ def run_kilobytes(kilobytes, write_output):
 
     with ThreadPoolExecutor() as pool:
         while produced < target:
-            for text, is_normal in pool.map(lambda _: make_cow_text(), range(KB_BATCH_SIZE)):
+            for text, is_normal in pool.map(lambda _: make_cow_text(normal_only), range(KB_BATCH_SIZE)):
                 if write_output:
                     sys.stdout.write(text + "\n")
                 produced += len(text.encode("utf-8")) + 1
@@ -136,6 +133,11 @@ def main():
         help="Kilobytes of cows to generate (overrides loops). "
              "Output is written if stdout is piped/redirected, otherwise discarded."
     )
+    parser.add_argument(
+        "-n", "--normal",
+        action="store_true",
+        help="Only generate normal cows"
+    )
     args = parser.parse_args()
 
     stdout_is_tty = sys.stdout.isatty()
@@ -150,7 +152,7 @@ def main():
     auto = args.auto or piped
 
     if args.kilobytes is not None:
-        counter, produced = run_kilobytes(args.kilobytes, write_output=not stdout_is_tty)
+        counter, produced = run_kilobytes(args.kilobytes, write_output=not stdout_is_tty, normal_only=args.normal)
         print_tally(counter, file=sys.stderr)
         print(f"Generated ~{produced / 1024:.2f} KB of cows"
               f"{' (discarded; redirect stdout to keep them)' if stdout_is_tty else ''}",
@@ -162,7 +164,7 @@ def main():
     for _ in range(args.loops):
         if not auto:
             time.sleep(1)
-        c = Cow(fake.first_name_female())
+        c = Cow(fake.first_name_female(), is_normal_cow=True if args.normal else None)
         if flash:
             clear_screen()
         c.moo()

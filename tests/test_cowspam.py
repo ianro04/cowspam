@@ -56,3 +56,12 @@ def test_rare_moo():
         assert c.moo_text() == c._render("Moo?", c._title)
     except Exception as e:
         pytest.fail(f"moo() raised an exception for rare cow: {e}")
+
+def test_normal_only():
+    for _ in range(5000):
+        c = Cow(is_normal_cow=True)
+        assert c._rare_char is None
+
+def test_normal_only_kb():
+    (output_counter, _) = run_kilobytes(2, False, True)
+    assert output_counter["Anomalous Cows"] == 0
