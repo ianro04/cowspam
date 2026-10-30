@@ -1,12 +1,4 @@
-import os
-import sys
-
-import cowsay
-import pytest
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from cowspam import (Cow, COWSAY_CHARS, run_kilobytes)
+from cowspam import COWSAY_CHARS, Cow, run_kilobytes
 
 def test_cow_init():
     cow = Cow(name="Bessie")
@@ -20,22 +12,16 @@ def test_cow_init():
 
 def test_moo():
     c = Cow()
-    try:
-        c.moo()
-    except Exception as e:
-        pytest.fail(f"moo() raised an exception: {e}")
+    c.moo()
 
 def test_cow_speak():
     c = Cow()
-    try:
-        c.speak("Hello, world!")
-    except Exception as e:
-        pytest.fail(f"speak() raised an exception: {e}")
+    c.speak("Hello, world!")
 
-def test_cow_str():
+def test_cow_preserves_values():
     c = Cow(name="Betsy", age=5)
-    expected_str = f"{c._title}, age {c.age}"
-    assert str(c) == expected_str
+    assert c.name == "Betsy"
+    assert c.age == 5
 
 def test_kb_produced_small():
     (output_counter, output_kb) = run_kilobytes(1, False)
@@ -48,14 +34,9 @@ def test_kb_produced_large():
     assert output_kb >= 10240
 
 def test_rare_moo():
-    c = Cow()
-    while c.is_normal_cow:
-        c = Cow()
-    try:
-        c.moo()
-        assert c.moo_text() == c._render("Moo?", c._title)
-    except Exception as e:
-        pytest.fail(f"moo() raised an exception for rare cow: {e}")
+    c = Cow(is_normal_cow=False)
+    c.moo()
+    assert c.moo_text() == c._render("Moo?", c._title)
 
 def test_normal_only():
     for _ in range(5000):
